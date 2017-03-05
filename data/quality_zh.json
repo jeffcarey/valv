@@ -6339,6 +6339,7 @@
     "language": {
         "code": "zh", 
         "english_name": "Chinese", 
-        "native_name": "\u4e2d\u6587"
+        "native_name": "\u4e2d\u6587",
+        "native_speakers": 1200000000
     }
 }

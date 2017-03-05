@@ -6339,6 +6339,8 @@
     "language": {
         "code": "fr", 
         "english_name": "French", 
-        "native_name": "fran\u00e7ais"
+        "native_name": "fran\u00e7ais",
+        "native_speakers": 80000000,
+        "foreign_speakers": 194000000
     }
 }

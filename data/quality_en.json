@@ -6339,6 +6339,8 @@
     "language": {
         "code": "en", 
         "english_name": "English", 
-        "native_name": "English"
+        "native_name": "English",
+        "native_speakers": 400000000,
+        "foreign_speakers": 700000000
     }
 }

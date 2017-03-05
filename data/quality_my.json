@@ -6339,6 +6339,8 @@
     "language": {
         "code": "my", 
         "english_name": "Burmese", 
-        "native_name": "\u1017\u1019\u102c\u1005\u102c"
+        "native_name": "\u1017\u1019\u102c\u1005\u102c",
+        "native_speakers": 33000000,
+        "foreign_speakers": 10000000
     }
 }

@@ -6339,6 +6339,8 @@
     "language": {
         "code": "sw", 
         "english_name": "Swahili", 
-        "native_name": "Kiswahili"
+        "native_name": "Kiswahili",
+        "native_speakers": 15000000,
+        "foreign_speakers": 100000000
     }
 }

@@ -6339,6 +6339,8 @@
     "language": {
         "code": "es", 
         "english_name": "Spanish", 
-        "native_name": "Espa\u00f1ol"
+        "native_name": "Espa\u00f1ol",
+        "native_speakers": 470000000,
+        "foreign_speakers": 90000000
     }
 }
