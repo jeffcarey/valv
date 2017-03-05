@@ -6335,5 +6335,10 @@
                 }
             ]
         }
-    ]
+    ], 
+    "language": {
+        "code": "sw", 
+        "english_name": "Swahili", 
+        "native_name": "Kiswahili"
+    }
 }

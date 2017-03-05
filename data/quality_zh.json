@@ -6335,5 +6335,10 @@
                 }
             ]
         }
-    ]
+    ], 
+    "language": {
+        "code": "zh", 
+        "english_name": "Chinese", 
+        "native_name": "\u4e2d\u6587"
+    }
 }

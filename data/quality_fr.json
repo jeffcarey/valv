@@ -6335,5 +6335,10 @@
                 }
             ]
         }
-    ]
+    ], 
+    "language": {
+        "code": "fr", 
+        "english_name": "French", 
+        "native_name": "fran\u00e7ais"
+    }
 }
