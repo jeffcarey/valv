@@ -9,7 +9,6 @@ then with the language code as the key for each inner node. The inner
 nodes have keys 'native_title' and 'link'.
 """
 
-
 url_base = 'https://www.wikidata.org/wiki/'
 LIST_TAG = "wikibase-sitelinklistview-listview"
 topic_file = open("vital.json", "r")
