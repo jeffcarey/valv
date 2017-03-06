@@ -15,71 +15,271 @@
         left:0;
         background-color: #000;
     }
+
+    text {
+        fill: white;
+        font-family: sans-serif;
+        font-size: 18pt;
+    }
+
+    text.smallfont {
+        font-size: 12pt;
+    }
+
+    .bodytext {
+        position: absolute;
+        text-align: justify;
+        width: 400px;
+        color: white;
+        font-family: sans-serif;
+        pointer-events: none;
+    }
+
     </style>
 </head>
 
 <body>
 <script>
 
-var width = 821;
-var height = 500;
+d3.selection.prototype.translate = function(a, b) {
+  return arguments.length === 1 ?
+        this.attr("transform", "translate(" + a + ")")
+      : this.attr("transform", "translate(" + a + "," + b + ")");
+};
+
+var width = screen.width;
+var height = screen.height;
+
+var dom = {}
+
+dom.introtext = d3.select("body").append("div")
+    .attr("class", "bodytext")
+    .style("margin-left", width/2-200 + "px")
+    .style("margin-top", height/4 + "px")
+    .style("opacity", 1)
+dom.introtext.selectAll("p")
+    .data(["The completeness, and therefore utility, of Wikipedia depends largely on the language that you speak.",
+          "The Wikipedia community has selected one thousand articles every Wikipedia should have. Obviously, this list has the biases of the educated and Anglophonic people who formulated it, and someone living in dire poverty would probably pick water filtration over quantum mechanics. Neverless, these articles provide a broad sample of important topics.",
+          "In this visualization, we will represent the length of the articles (a naive proxy for quality) as colored boxes. The brighter the box, the more complete the article.",
+          "Mouse over the box to see which article it represents. Click to view the article.",
+          "Use the spacebar or left/right arrows to progress through different languages, and their Wikipedias."
+    ])
+    .enter().append("p")
+    .text(function(d){return d})
+
+dom.aftertext = d3.select("body").append("div")
+    .attr("class", "bodytext")
+    .style("margin-left", width/2-200 + "px")
+    .style("margin-top", height/4 + "px")
+    .style("opacity", 0)
+dom.aftertext.selectAll("p")
+    .data(["The political and economic divides we face today, in the United States and globally, no longer stem from differences of opion. They arise from differences of fact.",
+          "Access to information has always torn down established oligarchies and given power and freedom to the masses. Now, more than ever, the ability to educate the world is our best hope of coexisting as a global civilization."
+    ])
+    .enter().append("p")
+    .text(function(d){return d})
 
 var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height)
 
-var treemapNode = svg.append("g")
-    .attr("transform", "translate("+(width/2-180)+","+(height/2-180)+")")
+dom.treemap = svg.append("g")
+    .translate(width/2-400, height/2-200)
+
+dom.title = svg.append("text")
+    .translate(width/2, height/6)
+    .attr("text-anchor", "middle")
+
+dom.nspeakers = svg.append("text")
+    .attr("class", "smallfont")
+    .translate(width/2, height/6 + 20)
+    .attr("text-anchor", "middle")
+
+dom.category = svg.append("text")
+    .attr("class", "smallfont")
+    .translate(width/2 - 4, height * 0.79)
+    .attr("text-anchor", "end")
+
+dom.subcategory = svg.append("text")
+    .attr("class", "smallfont")
+    .translate(width/2 + 4, height * 0.79)
+    .attr("text-anchor", "start")
+
+dom.tooltip = svg.append("text")
+    .translate(width/2, height * 0.82)
+    .attr("text-anchor", "middle")
 
 var colors = d3.schemeCategory10;
 
-var currentLanguageIndex = 0;
+var state = {slide: -1, frozen: false}
+var FINAL_SLIDE = 99;
+var FINAL_DATA_SLIDE;
+var DATA;
 
-d3.json("example_data.json", function(error, data){
+var treemap = d3.treemap()
+    .tile(d3.treemapSquarify.ratio(1))
+    .size([800, 400])
+    .padding(1.8);
+
+var TRANSITION_DURATION = 1000;
+
+document.onkeydown = function(e) {
+    e = e || window.event;
+    switch(e.which || e.keyCode) {
+        case 37: // left
+            if (state.frozen){ break; }
+            if (state.slide === FINAL_SLIDE){ state.slide = FINAL_DATA_SLIDE; }
+            else if (state.slide > -1){ state.slide -= 1 }
+            state.frozen = true;
+            setTimeout(render, 0)
+
+        break;
+
+        case 38: // up
+        break;
+
+        case 32: // space, deliberate fall-through
+        case 39: // right
+            if (state.frozen){ break; }
+            if (state.slide === FINAL_DATA_SLIDE){ state.slide = FINAL_SLIDE; }
+            else if (DATA !== undefined && state.slide !== FINAL_SLIDE){ state.slide += 1 }
+            state.frozen = true;
+            setTimeout(render, 0)
+        break;
+
+        case 40: // down
+        break;
+
+        default: return; // exit this handler for other keys
+    }
+    e.preventDefault(); // prevent the default action (scroll / move caret)
+}
+
+d3.json("processed_data.json", function(error, data){
     if (error) return console.error(error);
 
-    var node = d3.hierarchy(data[currentLanguageIndex], function(d){
-        return d.categories || d.subcategories || d.articles || null;
-    })
-        .count()
-        .sort(function(a, b) { return b.height - a.height; })
+    DATA = data;
+    FINAL_DATA_SLIDE = data.length - 1;
+    render();
+})
 
-    var treemap = d3.treemap()
-        .tile(d3.treemapSquarify.ratio(1))
-        .size([360, 360])
-        .padding(1.8);
 
-    var root = treemap(node)
-    root.children.forEach(function(category, i){
-        category.children.forEach(function(subcategory){
-            subcategory.children.forEach(function(article){
-                article.categoryIndex = i;
+function clearTooltip(){
+    dom.tooltip.text("");
+    dom.category.text("");
+    dom.subcategory.text("");
+}
+
+dom.tooltip.text("");
+function render(){
+    var leaves, title, speakers;
+
+    if (state.slide == -1){
+        clearTooltip();
+        leaves = [];
+        title = "The Wikipedia Language Gap";
+        speakers = undefined;
+    }else if (state.slide == FINAL_SLIDE){
+        clearTooltip();
+        leaves = [];
+        title = "Afterword";
+        speakers = undefined;
+    }else{
+
+        var datum = DATA[state.slide] || [];
+
+        var node = d3.hierarchy(datum, function(d){
+            return d.categories || d.subcategories || d.articles || null;
+        })
+            .count()
+            .sort(function(a, b) { return b.height - a.height; })
+
+        var root = treemap(node)
+        root.children.forEach(function(category, i){
+            category.children.forEach(function(subcategory){
+                subcategory.children.forEach(function(article){
+                    article.categoryIndex = i;
+                })
             })
         })
-    })
-    leaves = root.leaves();
 
-    var sel = treemapNode.selectAll(".treeRect")
+        leaves = root.leaves();
+        title = root.data.language.english_name;
+        if (title !== "English"){
+            title += " – ";
+            title += root.data.language.native_name;
+        }
+        speakers = root.data.language.native_speakers;
+    }
+
+    dom.introtext.transition().duration(TRANSITION_DURATION)
+        .style("opacity", state.slide === -1 ? 1 : 0)
+
+    dom.aftertext.transition().duration(TRANSITION_DURATION)
+        .style("opacity", state.slide === FINAL_SLIDE ? 1 : 0)
+
+    dom.title.transition().delay(TRANSITION_DURATION/2)
+        .text(title)
+        .on("end", function(){ state.frozen = false; })
+
+    dom.nspeakers.transition().delay(TRANSITION_DURATION/2)
+        .text(speakers ? formatLargeNumber(speakers) + " native speakers" : "" );
+
+    var sel = dom.treemap.selectAll(".treeRect")
         .data(leaves);
 
-    sel.exit().remove();
-    sel.enter().append("rect").attr("class", "treeRect")
-        .merge(sel)
+    var mouseoverDebounce = false;
+
+    sel.exit()
+        .transition().duration(TRANSITION_DURATION)
+          .style("fill", "#000000")
+        .remove();
+    sel.enter().append("rect")
+        .attr("class", "treeRect")
+      .merge(sel)
         .attr("x", function(d){ return d.x0 })
         .attr("width", function(d){ return d.x1 - d.x0 })
         .attr("y", function(d){ return d.y0 })
         .attr("height", function(d){ return d.y1 - d.y0 })
+        .on("mouseenter", function(d){
+            mouseoverDebounce = true;
+            dom.category.text(d.parent.parent.data.name + ":")
+            dom.subcategory.text(d.parent.data.name)
+            var txt;
+            if (state.slide === 0){ // English
+                txt = d.data.title;
+            }else{
+                txt = d.data.title + " – " + d.data.native_title;
+            }
+            dom.tooltip.text(txt);
+        })
+        .on("mouseleave", function(d){
+            mouseoverDebounce = false;
+            setTimeout(function(){ if (!mouseoverDebounce){ clearTooltip(); }}, 500)
+        })
+        .on("click", function(d){
+            window.open(d.data.link, '_blank')
+        })
+      .transition().duration(TRANSITION_DURATION)
         .style("fill", function(d){
             var c = d3.hsl(colors[d.categoryIndex]);
             c.l = d.data.quality/2;
             return c.toString();
-
         })
-})
+}
 
 
-
-
-
+function formatLargeNumber(n){
+    if (n > 1e9){
+        return Math.round(n/1e9) + " billion";
+    }
+    if (n > 1e6){
+        return Math.round(n/1e6) + " million";
+    }
+    if (n > 1e3){
+        return Math.round(n/1e3) + " thousand";
+    }
+    return ""+n
+}
     </script>
 </body>
