@@ -5,6 +5,7 @@
     <script src="https://d3js.org/d3-hierarchy.v1.min.js"></script>
     <script src="https://d3js.org/d3-array.v1.min.js"></script>
     <script src="https://d3js.org/d3-scale.v1.min.js"></script>
+    <script src="https://d3js.org/d3-random.v1.min.js"></script>
     <style>
     body {
         margin: 0;
@@ -21,7 +22,6 @@
         font-family: sans-serif;
         font-size: 18pt;
     }
-
     text.smallfont {
         font-size: 12pt;
     }
@@ -47,10 +47,12 @@ d3.selection.prototype.translate = function(a, b) {
       : this.attr("transform", "translate(" + a + "," + b + ")");
 };
 
-var width = screen.width;
-var height = screen.height;
+var width = window.innerWidth;
+var height = window.innerHeight;
 
-var dom = {}
+var dom = {};
+
+var colors = d3.schemeCategory10;
 
 dom.introtext = d3.select("body").append("div")
     .attr("class", "bodytext")
@@ -83,6 +85,12 @@ var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height)
 
+var introParticles =
+    particleSystem({g: svg.append("g"), intense: true, running: true});
+
+var afterParticles =
+    particleSystem({g: svg.append("g"), intense: false, running: false});
+
 dom.treemap = svg.append("g")
     .translate(width/2-400, height/2-200)
 
@@ -109,7 +117,7 @@ dom.tooltip = svg.append("text")
     .translate(width/2, height * 0.82)
     .attr("text-anchor", "middle")
 
-var colors = d3.schemeCategory10;
+
 
 var state = {slide: -1, frozen: false}
 var FINAL_SLIDE = 99;
@@ -128,8 +136,9 @@ document.onkeydown = function(e) {
     switch(e.which || e.keyCode) {
         case 37: // left
             if (state.frozen){ break; }
-            if (state.slide === FINAL_SLIDE){ state.slide = FINAL_DATA_SLIDE; }
+            if (state.slide === FINAL_SLIDE){ state.slide = FINAL_DATA_SLIDE; afterParticles.stop(); }
             else if (state.slide > -1){ state.slide -= 1 }
+            if (state.slide === -1){ introParticles.start() }
             state.frozen = true;
             setTimeout(render, 0)
 
@@ -141,8 +150,9 @@ document.onkeydown = function(e) {
         case 32: // space, deliberate fall-through
         case 39: // right
             if (state.frozen){ break; }
-            if (state.slide === FINAL_DATA_SLIDE){ state.slide = FINAL_SLIDE; }
+            if (state.slide === FINAL_DATA_SLIDE){ state.slide = FINAL_SLIDE; afterParticles.start(); }
             else if (DATA !== undefined && state.slide !== FINAL_SLIDE){ state.slide += 1 }
+            if (state.slide === 0){ introParticles.stop() }
             state.frozen = true;
             setTimeout(render, 0)
         break;
@@ -232,10 +242,11 @@ function render(){
 
     sel.exit()
         .transition().duration(TRANSITION_DURATION)
-          .style("fill", "#000000")
+          .style("opacity", 0)
         .remove();
     sel.enter().append("rect")
         .attr("class", "treeRect")
+        .style("opacity", 0)
       .merge(sel)
         .attr("x", function(d){ return d.x0 })
         .attr("width", function(d){ return d.x1 - d.x0 })
@@ -261,6 +272,7 @@ function render(){
             window.open(d.data.link, '_blank')
         })
       .transition().duration(TRANSITION_DURATION)
+        .style("opacity", 1)
         .style("fill", function(d){
             var c = d3.hsl(colors[d.categoryIndex]);
             c.l = d.data.quality/2;
@@ -280,6 +292,82 @@ function formatLargeNumber(n){
         return Math.round(n/1e3) + " thousand";
     }
     return ""+n
+}
+
+function particleSystem(spec){
+    var intense = spec.intense;
+    var g = spec.g.style("opacity", 1);
+    var density = intense ? 15000 : 30000;
+    var n = Math.floor(width*height/density)
+    var clock; // initialized to clock at last possible moment
+    var running = spec.running || false;
+    var particles = d3.range(n).map(function(){ return particle(g, intense) })
+
+    var draw = function(){
+        particles.forEach(function(p){ p.update(); p.draw(); })
+
+        if (running){
+            window.requestAnimationFrame(draw);
+        }
+    }
+
+    draw.start = function(){
+        g.transition().delay(TRANSITION_DURATION).duration(TRANSITION_DURATION)
+            .style("opacity", 1);
+        running = true;
+        // there's probably a way to do this with d3.timer....
+        window.requestAnimationFrame(draw);
+    }
+
+    draw.stop = function(dur){
+        g.transition().duration(500)
+            .style("opacity", 0)
+            .on("end", function(){ running = false; });
+    }
+
+    if (running){
+        draw.start();
+    }else{
+        g.style("opacity", 0);
+    }
+    return draw;
+
+}
+
+function particle(g, intense){
+    var color, sideLen, quality, x, y, xvel;
+    var elem = g.append("rect")
+
+    function reroll(startAnywhere){
+        color = colors[Math.floor(d3.randomUniform(0, colors.length)())];
+        color = d3.hsl(color);
+        sideLen = intense ? d3.randomNormal(25, 4) : d3.randomLogNormal(1.8, 1);
+        sideLen = Math.max(4, sideLen());
+        quality = intense ? d3.randomUniform(0.7, 1) : d3.randomUniform(0.1, 0.6);
+        color.l = quality()/2;
+        color = color.toString()
+        y = d3.randomUniform(0, height)()
+        x = startAnywhere ? d3.randomUniform(0, width)() : -sideLen;
+        xvel = intense ? d3.randomUniform(1, 6)() : d3.randomUniform(0.3, 1)();
+
+        elem.attr("y", y)
+            .attr("width", sideLen)
+            .attr("height", sideLen)
+            .style("fill", color)
+    }
+    reroll(true);
+
+    return {
+        update: function(){
+            x += xvel;
+            if (x > width){
+                reroll();
+            }
+        },
+        draw: function(){
+            elem.attr("x", x)
+        }
+    }
 }
     </script>
 </body>
