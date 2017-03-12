@@ -16,6 +16,7 @@
         left:0;
         background-color: #000;
         color: white;
+        font-family: sans-serif;
     }
 
     #left > table {
@@ -25,11 +26,18 @@
         border-radius: 2px;
     }
 
-    #left > table a:visited {
+    #left table a, #left table a:visited {
         color: white;
         text-decoration: none;
     }
 
+    #intro a, #intro a:visited {
+        color: #FFFFFF;
+        border: 1px solid white;
+        background-color: #3333BB;
+        padding: 5px;
+        text-decoration: none;
+    }
 
     #left > table a:link {
         color: white;
@@ -43,9 +51,6 @@
     }
     text.smallfont {
         font-size: 12pt;
-    }
-    text.medfont {
-     font-size: 16pt;   
     }
 
     .bodytext {
@@ -69,7 +74,8 @@
     }
 
     #left {
-        flex-grow: 2;
+        flex-basis: auto;
+        flex-grow: 1;
         padding-left: 10px;
         padding-right: 20px;
         font-size: 10pt;
@@ -77,20 +83,27 @@
 
     #right {
         display: flex;
+        flex-basis: auto;
+        flex-grow: 9;
         flex-direction: column;
         -webkit-flex-direction: column;
         flex-grow: 3;
     }
 
     #tree {
-        
+        flex-basis: auto;
         flex-grow: 12;
     }
 
     footer {
         flex-grow: 1;
         color: white;
-        padding-left: 60px;
+        padding-left: 54px;
+    }
+
+    footer a, footer a:visited {
+        background-color: #000000;
+        color: #FFFFFF; 
     }
 
     </style>
@@ -103,7 +116,7 @@
 
         <p>The Wikipedia community has selected one thousand articles every Wikipedia should have. Of course, distilling the human experience down to 1,000 topics is no easy task, and there will be plenty of disagreement and discussion about what makes the list.</p>
 
-        <p>The Wikipedias in the world's various languages differ in their completeness of coverage for these articles. Our goals here are to gain greater exposure for the vital articles, and to encourage people to help extend these articles where they can! To explore this phenomenon, we present this visualization, wherein we represent the length of the articles (a naive proxy for quality) as colored boxes. The brighter the box, the more complete the article. It's fascinating to see what articles the various Wikipedias emphasize.</p>
+        <p>The Wikipedias in the world's various languages differ in their completeness of coverage for these articles. Our goals here are to gain greater exposure for the vital articles, and to encourage people to help extend these articles where they can! To explore this phenomenon, we present this visualization, wherein we represent the length of the articles (a naive proxy for quality) as colored boxes. The brighter the box, the more complete the article. It's fascinating to see what topics the various Wikipedias emphasize.</p>
 
         <p><a href="#" onclick="explore(event);">Begin Exploring!</a></p>
         </div>
@@ -134,7 +147,7 @@
 
     <div id="right">
         <div id="tree"></div>
-        <footer>Created by Max Goldstein and <a href="http://jeffcarey.info">Jeff Carey</a> as part of the 2017 WDDC, sponsored by <a href="http://blog.hatnote.com">Hatnote</a></footer>
+        <footer>Created by <a href="http://maxgoldste.in">Max Goldstein</a> and <a href="http://jeffcarey.info">Jeff Carey</a> as part of the 2017 WDDC, sponsored by <a href="http://blog.hatnote.com">Hatnote</a></footer>
     </div>
     </div>
 
@@ -197,12 +210,12 @@ dom.treemap = svg.append("g")
     .translate(50, 100);
 
 dom.title = svg.append("text")
-    .translate(60, 30)
+    .translate(54, 30)
     .attr("text-anchor", "start");
 
 dom.nspeakers = svg.append("text")
     .attr("class", "smallfont")
-    .translate(60, 55)
+    .translate(54, 55)
     .attr("text-anchor", "start");
 
 dom.category = svg.append("text")
@@ -220,10 +233,7 @@ dom.tooltip = svg.append("text")
     .attr("text-anchor", "start");
 
 var state = {slide: -1, frozen: false};
-// var FINAL_SLIDE = 99;
-// var FINAL_DATA_SLIDE;
 var DATA;
-
 var treeWidth = 0.8*width;
 var treeHeight = 0.83*height;
 
@@ -234,43 +244,8 @@ var treemap = d3.treemap()
 
 var TRANSITION_DURATION = 1000;
 
-// document.onkeydown = function(e) {
-//     e = e || window.event;
-//     switch(e.which || e.keyCode) {
-//         case 37: // left
-//             if (state.frozen){ break; }
-//             if (state.slide === FINAL_SLIDE){ state.slide = FINAL_DATA_SLIDE; afterParticles.stop(); }
-//             else if (state.slide > -1){ state.slide -= 1 }
-//             if (state.slide === -1){ introParticles.start() }
-//             state.frozen = true;
-//             setTimeout(render, 0)
-
-//         break;
-
-//         case 38: // up
-//         break;
-
-//         case 32: // space, deliberate fall-through
-//         case 39: // right
-//             if (state.frozen){ break; }
-//             if (state.slide === FINAL_DATA_SLIDE){ state.slide = FINAL_SLIDE; afterParticles.start(); }
-//             else if (DATA !== undefined && state.slide !== FINAL_SLIDE){ state.slide += 1 }
-//             if (state.slide === 0){ introParticles.stop() }
-//             state.frozen = true;
-//             setTimeout(render, 0)
-//         break;
-
-//         case 40: // down
-//         break;
-
-//         default: return; // exit this handler for other keys
-//     }
-//     e.preventDefault(); // prevent the default action (scroll / move caret)
-// }
-
 function explore(event) {
     event = event | window.event;
-    //event.preventDefault();
 
     intro = document.getElementById("intro");
     intro.style.display = 'none';
@@ -283,17 +258,11 @@ function explore(event) {
         if (error) return console.error(error);
 
         DATA = data;
-        console.log(data);
-        // FINAL_DATA_SLIDE = data.length - 1;
         render();
-    });
-    
+    });    
 }
 
 function selectLanguage(obj) {
-    //event = event | window.event;
-    console.log(obj.innerText);
-    //console.log(DATA);
 
     for(var i = 0; i < DATA.length; i++) {
         console.log(DATA[i].language.native_name);
@@ -304,7 +273,6 @@ function selectLanguage(obj) {
     }
 
     return false;
-    
 }
 
 function clearTooltip(){
@@ -316,19 +284,6 @@ function clearTooltip(){
 dom.tooltip.text("");
 function render(){
     var leaves, title, speakers;
-
-    // if (state.slide == -1){
-    //     clearTooltip();
-    //     leaves = [];
-    //     title = "The Wikipedia Language Gap";
-    //     speakers = undefined;
-    // }else if (state.slide == FINAL_SLIDE){
-    //     clearTooltip();
-    //     leaves = [];
-    //     title = "Afterword";
-    //     speakers = undefined;
-    // }else{
-
     var datum = DATA[state.slide] || [];
 
     var node = d3.hierarchy(datum, function(d){
@@ -353,13 +308,7 @@ function render(){
          title += root.data.language.english_name;
     }
     speakers = root.data.language.native_speakers;
-// }
 
-// dom.introtext.transition().duration(TRANSITION_DURATION)
-//     .style("opacity", state.slide === -1 ? 1 : 0)
-
-// dom.aftertext.transition().duration(TRANSITION_DURATION)
-//     .style("opacity", state.slide === FINAL_SLIDE ? 1 : 0)
 
 dom.title.transition().delay(TRANSITION_DURATION/2)
     .text(title)
