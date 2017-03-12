@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-hierarchy.v1.min.js"></script>
+    <script src="https://d3js.org/d3-array.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale.v1.min.js"></script>
+    <script src="https://d3js.org/d3-random.v1.min.js"></script>
+    <style>
+    body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left:0;
+        background-color: #000;
+        color: white;
+    }
+
+    #left > table {
+        background-color: #333333;
+        font-size: 12pt;
+        margin-top: 10px;
+        border-radius: 2px;
+    }
+
+    #left > table a:visited {
+        color: white;
+        text-decoration: none;
+    }
+
+
+    #left > table a:link {
+        color: white;
+        text-decoration: none;
+    }
+
+    text {
+        fill: white;
+        font-family: sans-serif;
+        font-size: 20pt;
+    }
+    text.smallfont {
+        font-size: 12pt;
+    }
+    text.medfont {
+     font-size: 16pt;   
+    }
+
+    .bodytext {
+        position: absolute;
+        text-align: justify;
+        width: 400px;
+        color: white;
+        font-family: sans-serif;
+        pointer-events: none;
+    }
+
+    #intro_text {
+        color: white;
+        font-family: sans-serif;
+        margin: 10% 10% auto 10%;
+    }
+
+    #main {
+        display: none;
+        flex-direction: row;
+    }
+
+    #left {
+        flex-grow: 2;
+        padding-left: 10px;
+        padding-right: 20px;
+        font-size: 10pt;
+    }
+
+    #right {
+        display: flex;
+        flex-direction: column;
+        -webkit-flex-direction: column;
+        flex-grow: 3;
+    }
+
+    #tree {
+        
+        flex-grow: 12;
+    }
+
+    footer {
+        flex-grow: 1;
+        color: white;
+        padding-left: 60px;
+    }
+
+    </style>
+</head>
+
+<body>
+    <div id="intro">
+        <div id="intro_text">
+        <p>The completeness, and therefore utility, of Wikipedia depends largely on the language that you speak.</p>
+
+        <p>The Wikipedia community has selected one thousand articles every Wikipedia should have. Of course, distilling the human experience down to 1,000 topics is no easy task, and there will be plenty of disagreement and discussion about what makes the list.</p>
+
+        <p>The Wikipedias in the world's various languages differ in their completeness of coverage for these articles. Our goals here are to gain greater exposure for the vital articles, and to encourage people to help extend these articles where they can! To explore this phenomenon, we present this visualization, wherein we represent the length of the articles (a naive proxy for quality) as colored boxes. The brighter the box, the more complete the article. It's fascinating to see what articles the various Wikipedias emphasize.</p>
+
+        <p><a href="#" onclick="explore(event);">Begin Exploring!</a></p>
+        </div>
+    </div> 
+    
+    <div id="main">
+    <div id="left">
+    <table>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Arabic">العربية</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="German">Deutsch</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="English">English</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Spanish">Español</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="French">Français</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Korean">한국어</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Italian">Italiano</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Swahili">Kiswahili</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Burmese">ဗမာစာ</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Japanese">日本語</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Russian">Русский</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Portuguese">Português</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Turkish">Türkçe</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Swedish">Svenska</a></td></tr>
+        <tr><td><a href="#" onclick="selectLanguage(this)" title="Chinese">中文</a></td></tr>
+    </table>
+
+    <br>Select a language from the list to see that language's map. A brighter square means a longer article.
+    </div>
+
+    <div id="right">
+        <div id="tree"></div>
+        <footer>Created by Max Goldstein and <a href="http://jeffcarey.info">Jeff Carey</a> as part of the 2017 WDDC, sponsored by <a href="http://blog.hatnote.com">Hatnote</a></footer>
+    </div>
+    </div>
+
+<script>
+
+d3.selection.prototype.translate = function(a, b) {
+  return arguments.length === 1 ?
+        this.attr("transform", "translate(" + a + ")")
+      : this.attr("transform", "translate(" + a + "," + b + ")");
+};
+
+var width = window.innerWidth;
+var height = window.innerHeight*.9;
+
+var dom = {};
+var colors = d3.schemeCategory10;
+
+// dom.introtext = d3.select("body").append("div")
+//     .attr("class", "bodytext")
+//     .style("margin-left", width/2-200 + "px")
+//     .style("margin-top", height/4 + "px")
+//     .style("opacity", 1)
+// dom.introtext.selectAll("p")
+//     .data(["The completeness, and therefore utility, of Wikipedia depends largely on the language that you speak.",
+//           "The Wikipedia community has selected one thousand articles every Wikipedia should have. Obviously, this list has the biases of the educated and Anglophonic people who formulated it, and someone living in dire poverty would probably pick water filtration over quantum mechanics. Neverless, these articles provide a broad sample of important topics.",
+//           "In this visualization, we will represent the length of the articles (a naive proxy for quality) as colored boxes. The brighter the box, the more complete the article.",
+//           "Mouse over the box to see which article it represents. Click to view the article.",
+//           "Use the spacebar or left/right arrows to progress through different languages, and their Wikipedias."
+//     ])
+//     .enter().append("p")
+//     .text(function(d){return d})
+
+// dom.aftertext = d3.select("body").append("div")
+//     .attr("class", "bodytext")
+//     .style("margin-left", width/2-200 + "px")
+//     .style("margin-top", height/4 + "px")
+//     .style("opacity", 0)
+// dom.aftertext.selectAll("p")
+//     .data(["The political and economic divides we face today, in the United States and globally, no longer stem from differences of opion. They arise from differences of fact.",
+//           "Access to information has always torn down established oligarchies and given power and freedom to the masses. Now, more than ever, the ability to educate the world is our best hope of coexisting as a global civilization."
+//     ])
+//     .enter().append("p")
+//     .text(function(d){return d})
+
+var svg = d3.select("#tree").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+var introSvg = d3.select("#intro").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+var introParticles =
+    particleSystem({g: introSvg.append("g"), intense: true, running: true});
+
+// var afterParticles =
+    // particleSystem({g: svg.append("g"), intense: false, running: false});
+
+dom.treemap = svg.append("g")
+    .translate(50, 100);
+
+dom.title = svg.append("text")
+    .translate(60, 30)
+    .attr("text-anchor", "start");
+
+dom.nspeakers = svg.append("text")
+    .attr("class", "smallfont")
+    .translate(60, 55)
+    .attr("text-anchor", "start");
+
+dom.category = svg.append("text")
+    .attr("class", "smallfont")
+    .translate(width*.33, 55)
+    .attr("text-anchor", "start");
+
+dom.subcategory = svg.append("text")
+    .attr("class", "smallfont")
+    .translate(width*.33, 80)
+    .attr("text-anchor", "start");
+
+dom.tooltip = svg.append("text")
+    .translate(width*.33, 30)
+    .attr("text-anchor", "start");
+
+var state = {slide: -1, frozen: false};
+// var FINAL_SLIDE = 99;
+// var FINAL_DATA_SLIDE;
+var DATA;
+
+var treeWidth = 0.8*width;
+var treeHeight = 0.83*height;
+
+var treemap = d3.treemap()
+    .tile(d3.treemapSquarify.ratio(1))
+    .size([treeWidth, treeHeight])
+    .padding(1.8);
+
+var TRANSITION_DURATION = 1000;
+
+// document.onkeydown = function(e) {
+//     e = e || window.event;
+//     switch(e.which || e.keyCode) {
+//         case 37: // left
+//             if (state.frozen){ break; }
+//             if (state.slide === FINAL_SLIDE){ state.slide = FINAL_DATA_SLIDE; afterParticles.stop(); }
+//             else if (state.slide > -1){ state.slide -= 1 }
+//             if (state.slide === -1){ introParticles.start() }
+//             state.frozen = true;
+//             setTimeout(render, 0)
+
+//         break;
+
+//         case 38: // up
+//         break;
+
+//         case 32: // space, deliberate fall-through
+//         case 39: // right
+//             if (state.frozen){ break; }
+//             if (state.slide === FINAL_DATA_SLIDE){ state.slide = FINAL_SLIDE; afterParticles.start(); }
+//             else if (DATA !== undefined && state.slide !== FINAL_SLIDE){ state.slide += 1 }
+//             if (state.slide === 0){ introParticles.stop() }
+//             state.frozen = true;
+//             setTimeout(render, 0)
+//         break;
+
+//         case 40: // down
+//         break;
+
+//         default: return; // exit this handler for other keys
+//     }
+//     e.preventDefault(); // prevent the default action (scroll / move caret)
+// }
+
+function explore(event) {
+    event = event | window.event;
+    //event.preventDefault();
+
+    intro = document.getElementById("intro");
+    intro.style.display = 'none';
+    introParticles.stop();
+    main = document.getElementById("main");
+    main.style.display = 'flex';
+
+    d3.json("processed_data.json", function(error, data){
+        state.slide = 0;
+        if (error) return console.error(error);
+
+        DATA = data;
+        console.log(data);
+        // FINAL_DATA_SLIDE = data.length - 1;
+        render();
+    });
+    
+}
+
+function selectLanguage(obj) {
+    //event = event | window.event;
+    console.log(obj.innerText);
+    //console.log(DATA);
+
+    for(var i = 0; i < DATA.length; i++) {
+        console.log(DATA[i].language.native_name);
+        if(DATA[i].language.native_name.toLowerCase() == obj.innerText.toLowerCase()) {
+            state.slide = i;
+            setTimeout(render, 0);        
+        }
+    }
+
+    return false;
+    
+}
+
+function clearTooltip(){
+    dom.tooltip.text("");
+    dom.category.text("");
+    dom.subcategory.text("");
+}
+
+dom.tooltip.text("");
+function render(){
+    var leaves, title, speakers;
+
+    // if (state.slide == -1){
+    //     clearTooltip();
+    //     leaves = [];
+    //     title = "The Wikipedia Language Gap";
+    //     speakers = undefined;
+    // }else if (state.slide == FINAL_SLIDE){
+    //     clearTooltip();
+    //     leaves = [];
+    //     title = "Afterword";
+    //     speakers = undefined;
+    // }else{
+
+    var datum = DATA[state.slide] || [];
+
+    var node = d3.hierarchy(datum, function(d){
+        return d.categories || d.subcategories || d.articles || null;
+    })
+        .count()
+        .sort(function(a, b) { return b.height - a.height; })
+
+    var root = treemap(node)
+    root.children.forEach(function(category, i){
+        category.children.forEach(function(subcategory){
+            subcategory.children.forEach(function(article){
+                article.categoryIndex = i;
+            })
+        })
+    })
+
+    leaves = root.leaves();
+    title = root.data.language.native_name;
+    if (title !== "English"){
+         title += " – ";
+         title += root.data.language.english_name;
+    }
+    speakers = root.data.language.native_speakers;
+// }
+
+// dom.introtext.transition().duration(TRANSITION_DURATION)
+//     .style("opacity", state.slide === -1 ? 1 : 0)
+
+// dom.aftertext.transition().duration(TRANSITION_DURATION)
+//     .style("opacity", state.slide === FINAL_SLIDE ? 1 : 0)
+
+dom.title.transition().delay(TRANSITION_DURATION/2)
+    .text(title)
+    .on("end", function(){ state.frozen = false; })
+
+dom.nspeakers.transition().delay(TRANSITION_DURATION/2)
+    .text(speakers ? formatLargeNumber(speakers) + " native speakers" : "" );
+
+var sel = dom.treemap.selectAll(".treeRect")
+    .data(leaves);
+
+var mouseoverDebounce = false;
+
+sel.exit()
+    .transition().duration(TRANSITION_DURATION)
+      .style("opacity", 0)
+    .remove();
+sel.enter().append("rect")
+    .attr("class", "treeRect")
+    .style("opacity", 0)
+  .merge(sel)
+    .attr("x", function(d){ return d.x0 })
+    .attr("width", function(d){ return d.x1 - d.x0 })
+    .attr("y", function(d){ return d.y0 })
+    .attr("height", function(d){ return d.y1 - d.y0 })
+    .on("mouseenter", function(d){
+        mouseoverDebounce = true;
+        dom.category.text("Category: " + d.parent.parent.data.name);
+        dom.subcategory.text("Subcategory: " + d.parent.data.name);
+        var txt;
+        if (state.slide === 0){ // English
+            txt = d.data.title;
+        }else{
+            txt = d.data.native_title + " – " + d.data.title;
+        }
+        dom.tooltip.text(txt);
+    })
+    .on("mouseleave", function(d){
+        mouseoverDebounce = false;
+        setTimeout(function(){ if (!mouseoverDebounce){ clearTooltip(); }}, 500)
+    })
+    .on("click", function(d){
+        window.open(d.data.link, '_blank')
+    })
+  .transition().duration(TRANSITION_DURATION)
+    .style("opacity", 1)
+    .style("fill", function(d){
+        var c = d3.hsl(colors[d.categoryIndex]);
+        c.l = d.data.quality/2;
+        return c.toString();
+    })
+}
+
+function formatLargeNumber(n){
+    if (n > 1e9){
+        return Math.round(n/1e9) + " billion";
+    }
+    if (n > 1e6){
+        return Math.round(n/1e6) + " million";
+    }
+    if (n > 1e3){
+        return Math.round(n/1e3) + " thousand";
+    }
+    return ""+n
+}
+
+function particleSystem(spec){
+    var intense = spec.intense;
+    var g = spec.g.style("opacity", 1);
+    var density = intense ? 15000 : 30000;
+    var n = Math.floor(width*height/density)
+    var clock; // initialized to clock at last possible moment
+    var running = spec.running || false;
+    var particles = d3.range(n).map(function(){ return particle(g, intense) })
+
+    var draw = function(){
+        particles.forEach(function(p){ p.update(); p.draw(); })
+
+        if (running){
+            window.requestAnimationFrame(draw);
+        }
+    }
+
+    draw.start = function(){
+        g.transition().delay(TRANSITION_DURATION).duration(TRANSITION_DURATION)
+            .style("opacity", 1);
+        running = true;
+        // there's probably a way to do this with d3.timer....
+        window.requestAnimationFrame(draw);
+    }
+
+    draw.stop = function(dur){
+        g.transition().duration(500)
+            .style("opacity", 0)
+            .on("end", function(){ running = false; });
+    }
+
+    if (running){
+        draw.start();
+    }else{
+        g.style("opacity", 0);
+    }
+    return draw;
+
+}
+
+function particle(g, intense){
+    var color, sideLen, quality, x, y, xvel;
+    var elem = g.append("rect")
+
+    function reroll(startAnywhere){
+        color = colors[Math.floor(d3.randomUniform(0, colors.length)())];
+        color = d3.hsl(color);
+        sideLen = intense ? d3.randomNormal(25, 4) : d3.randomLogNormal(1.8, 1);
+        sideLen = Math.max(4, sideLen());
+        quality = intense ? d3.randomUniform(0.7, 1) : d3.randomUniform(0.1, 0.6);
+        color.l = quality()/2;
+        color = color.toString()
+        y = d3.randomUniform(0, height)()
+        x = startAnywhere ? d3.randomUniform(0, width)() : -sideLen;
+        xvel = intense ? d3.randomUniform(1, 6)() : d3.randomUniform(0.3, 1)();
+
+        elem.attr("y", y)
+            .attr("width", sideLen)
+            .attr("height", sideLen)
+            .style("fill", color)
+    }
+    reroll(true);
+
+    return {
+        update: function(){
+            x += xvel;
+            if (x > width){
+                reroll();
+            }
+        },
+        draw: function(){
+            elem.attr("x", x)
+        }
+    }
+}
+    </script>
+</body>
